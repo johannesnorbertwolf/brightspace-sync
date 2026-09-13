@@ -20,12 +20,8 @@ jobs:
         run: pip install -r requirements-build.txt
       - name: Build the app
         run: ./scripts/build_app.sh
-      - name: Package the app
-        run: |
-          cd dist
-          ditto -c -k --sequesterRsrc --keepParent "Brightspace Sync.app" "Brightspace-Sync.zip"
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/Brightspace-Sync.zip
+          files: dist/Brightspace-Sync.dmg
           generate_release_notes: true

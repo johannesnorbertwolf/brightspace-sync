@@ -13,10 +13,10 @@ assignment due dates and grades against the last run.
 The friendly, no-terminal version is a native menu bar app. Grab the latest
 build here — no GitHub account needed:
 
-**https://github.com/johannesnorbertwolf/brightspace-sync/releases/latest/download/Brightspace-Sync.zip**
+**https://github.com/johannesnorbertwolf/brightspace-sync/releases/latest/download/Brightspace-Sync.dmg**
 
-Unzip it, drag **Brightspace Sync** into Applications, and the first time you
-open it, right-click → Open. See [INSTALL.md](INSTALL.md) for the
+Open the disk image, drag **Brightspace Sync** into Applications, eject, and the
+first time you open it, right-click → Open. See [INSTALL.md](INSTALL.md) for the
 picture-by-picture guide. You need Google Chrome installed.
 
 ## How authentication works
@@ -71,7 +71,7 @@ alerts you in plain language when the login lapses.
 
 ```bash
 pip install -r requirements-build.txt   # runtime deps + PyInstaller
-./scripts/build_app.sh                  # -> "dist/Brightspace Sync.app"
+./scripts/build_app.sh                  # -> "dist/Brightspace Sync.app" + .dmg
 ```
 
 The app is intentionally small (~25 MB): it uses macOS's own AppKit for the

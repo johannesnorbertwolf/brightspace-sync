@@ -32,3 +32,16 @@ du -sh "$APP"
 echo
 echo "Largest components:"
 du -sh "$APP"/Contents/* 2>/dev/null | sort -h | tail -10
+
+echo
+echo "==> Packaging disk image"
+DMG="dist/Brightspace-Sync.dmg"
+STAGE="$(mktemp -d)"
+cp -R "$APP" "$STAGE/"
+ln -s /Applications "$STAGE/Applications"
+rm -f "$DMG"
+hdiutil create -volname "Brightspace Sync" -srcfolder "$STAGE" \
+  -ov -format UDZO "$DMG" >/dev/null
+rm -rf "$STAGE"
+echo "==> Wrote: $DMG"
+du -sh "$DMG"

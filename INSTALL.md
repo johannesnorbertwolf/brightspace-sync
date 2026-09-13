@@ -21,9 +21,10 @@ install it the normal way.
 ## Step 2 — Install the app
 
 1. Download **Brightspace Sync** from
-   https://github.com/johannesnorbertwolf/brightspace-sync/releases/latest/download/Brightspace-Sync.zip
-2. Open the download (it unzips by itself) and drag **Brightspace Sync** into
-   your **Applications** folder.
+   https://github.com/johannesnorbertwolf/brightspace-sync/releases/latest/download/Brightspace-Sync.dmg
+2. Open the downloaded disk image, then drag **Brightspace Sync** onto the
+   **Applications** shortcut in the same window. Eject the disk image
+   afterwards.
 3. Open **Applications**, right-click (or Control-click) **Brightspace Sync**,
    choose **Open**, then click **Open** again.
 
