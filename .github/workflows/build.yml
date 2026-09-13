@@ -1,0 +1,28 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  app:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: pip install -r requirements-build.txt
+      - name: Build the app
+        run: ./scripts/build_app.sh
+      - name: Package the app
+        run: |
+          cd dist
+          ditto -c -k --sequesterRsrc --keepParent "Brightspace Sync.app" "Brightspace-Sync.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Brightspace-Sync
+          path: dist/Brightspace-Sync.zip

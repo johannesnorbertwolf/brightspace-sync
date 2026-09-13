@@ -1,0 +1,49 @@
+{
+  "domain": "brightspace.rug.nl",
+  "out_dir": "~/Brightspace",
+  "cookies_file": "~/.config/brightspace-sync/cookies.txt",
+  "courses": {
+    "ids": [],
+    "include": [],
+    "exclude": [],
+    "include_inactive": false
+  },
+  "app": {
+    "setup_complete": false,
+    "launch_at_login": true,
+    "interval_minutes": 60
+  },
+  "track": {
+    "files": true,
+    "announcements": true,
+    "assignments": true,
+    "grades": true
+  },
+  "notify_initial": false,
+  "notify": {
+    "macos": true,
+    "email": {
+      "enabled": false,
+      "to": "",
+      "from": "",
+      "smtp_host": "",
+      "smtp_port": 587,
+      "username": "",
+      "password_env": "BRIGHTSPACE_SMTP_PASSWORD",
+      "use_tls": true
+    },
+    "webhook": {
+      "enabled": false,
+      "url_env": "BRIGHTSPACE_WEBHOOK_URL"
+    },
+    "telegram": {
+      "enabled": false,
+      "bot_token_env": "BRIGHTSPACE_TELEGRAM_BOT_TOKEN",
+      "chat_id_env": "BRIGHTSPACE_TELEGRAM_CHAT_ID"
+    },
+    "imessage": {
+      "enabled": false,
+      "recipient": ""
+    }
+  }
+}

@@ -1,0 +1,7 @@
+requests>=2.31
+websocket-client>=1.7
+
+# Native macOS menu bar app (part of the OS; the PyObjC bridge is what we
+# bundle). No Qt and no Playwright, which keeps the app small.
+pyobjc-core>=10.0
+pyobjc-framework-Cocoa>=10.0

@@ -1,0 +1,17 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Runtime data (kept in ~/.config, ~/.cache, ~/.local/state anyway)
+*.log
+
+# Build output
+build/
+dist/
+
+# macOS
+.DS_Store
