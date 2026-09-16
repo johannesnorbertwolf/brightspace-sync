@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fcntl
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -28,6 +29,31 @@ from .settings_window import SettingsWindow
 
 LOCK_PATH = Path.home() / ".local" / "state" / "brightspace-sync" / "app.lock"
 LOG_DIR = Path.home() / "Library" / "Logs" / "brightspace-sync"
+
+UPDATE_INTERVAL = 24 * 3600
+
+
+def _plain_notes(notes: str) -> str:
+    """Turn a Markdown changelog section into something readable in a dialog."""
+    lines: list[str] = []
+    for raw in (notes or "").splitlines():
+        line = raw.strip()
+        if not line:
+            lines.append("")
+            continue
+        line = re.sub(r"^#{1,6}\s*", "", line).replace("**", "")
+        if line.startswith(("- ", "* ")):
+            line = "• " + line[2:].strip()
+        lines.append(line)
+    text = "\n".join(lines).strip()
+    return re.sub(r"\n{3,}", "\n\n", text)
+
+
+def _summarise_notes(notes: str, limit: int = 320) -> str:
+    text = _plain_notes(notes)
+    if len(text) > limit:
+        text = text[: limit - 1].rstrip() + "…"
+    return text or "Open Brightspace Sync to see what's new."
 
 
 def _setup_logging() -> None:
@@ -63,6 +89,8 @@ class AppController(NSObject):
         self.syncing = False
         self.needs_login = False
         self.timer = None
+        self.update_timer = None
+        self.update = None
         self.settings = None
         self.log_lines = []
         self._post = lambda fn, *args: AppHelper.callAfter(fn, *args)
@@ -89,6 +117,8 @@ class AppController(NSObject):
         self.menu.addItem_(self.status_line)
         self.menu.addItem_(NSMenuItem.separatorItem())
 
+        self.update_item = self._add_item("", b"update:", "")
+        self.update_item.setHidden_(True)
         self.sync_item = self._add_item("Sync Now", b"syncNow:", "s")
         self.folder_item = self._add_item(
             "Open Brightspace Folder", b"openFolder:", ""
@@ -131,6 +161,7 @@ class AppController(NSObject):
             self._open_settings("setup")
         else:
             self._reschedule()
+            self._schedule_update_check()
             if not State().load().summary().get("last_run"):
                 self._start_sync(interactive=False)
 
@@ -148,6 +179,7 @@ class AppController(NSObject):
         if platform.remove_legacy_agent():
             self._log_message("Removed the old background job; the app now schedules syncs.")
         self._reschedule()
+        self._schedule_update_check()
         self._start_sync(interactive=False)
 
     def after_prefs_saved(self):
@@ -166,6 +198,55 @@ class AppController(NSObject):
 
     def onTimer_(self, sender):
         self._start_sync(interactive=False)
+
+    # -- updates -----------------------------------------------------------
+
+    def _schedule_update_check(self):
+        self._check_updates()
+        if self.update_timer is not None:
+            self.update_timer.invalidate()
+        self.update_timer = (
+            NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+                UPDATE_INTERVAL, self, b"onUpdateTimer:", None, True
+            )
+        )
+
+    def onUpdateTimer_(self, sender):
+        self._check_updates()
+
+    def _check_updates(self):
+        workers.start_update_check(on_done=self._on_update_checked, post=self._post)
+
+    def _on_update_checked(self, update):
+        if update is None:
+            return
+        self.update = update
+        self.update_item.setTitle_(f"Update available (v{update.version})…")
+        self.update_item.setHidden_(False)
+        state = State().load()
+        if state.data.get("update_notified") != update.version:
+            self._send_notification(
+                f"Brightspace Sync {update.version} is available",
+                _summarise_notes(update.notes),
+            )
+            state.data["update_notified"] = update.version
+            state.save(touch_last_run=False)
+
+    def update_(self, sender):
+        if not self.update:
+            return
+        notes = _plain_notes(self.update.notes)
+        if len(notes) > 1500:
+            notes = notes[:1500].rstrip() + "…"
+        alert = NSAlert.alloc().init()
+        alert.setMessageText_(f"Brightspace Sync {self.update.version} is available")
+        alert.setInformativeText_(
+            notes or "Open the releases page to see what's new."
+        )
+        alert.addButtonWithTitle_("Download")
+        alert.addButtonWithTitle_("Later")
+        if alert.runModal() == 1000:
+            platform.open_url(self.update.download_url or self.update.url)
 
     def _open_settings(self, mode):
         self.settings = SettingsWindow.alloc().initWithController_mode_(self, mode)

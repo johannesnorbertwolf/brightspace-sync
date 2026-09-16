@@ -75,6 +75,15 @@ menu bar: click the icon for status, **Sync Now**, the download folder,
 Preferences, and Sign In Again. It syncs on a schedule and at login, and
 alerts you in plain language when the login lapses.
 
+### Update notifications
+
+On launch, and once a day after that, the app asks GitHub for the newest
+release. If it is newer than the running version, you get a notification with
+a short summary of what changed, and an **Update available** item appears at
+the top of the menu; clicking it shows the full notes and opens the download.
+The notes come from [CHANGELOG.md](CHANGELOG.md), and a release refuses to
+publish without an entry for its version.
+
 ### Build a double-clickable app
 
 ```bash

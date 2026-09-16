@@ -16,6 +16,7 @@ STATE_PATH = STATE_DIR / "state.json"
 _EMPTY: dict = {
     "version": 1,
     "last_run": None,
+    "update_notified": None,
     "courses": {},
     "files": {},
     "announcements": {},
@@ -46,8 +47,9 @@ class State:
                 self.data[key] = loaded.get(key, json.loads(json.dumps(default)))
         return self
 
-    def save(self) -> None:
-        self.data["last_run"] = int(time.time())
+    def save(self, *, touch_last_run: bool = True) -> None:
+        if touch_last_run:
+            self.data["last_run"] = int(time.time())
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(self.data, indent=2, sort_keys=True))

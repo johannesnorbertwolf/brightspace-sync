@@ -20,8 +20,10 @@ jobs:
         run: pip install -r requirements-build.txt
       - name: Build the app
         run: ./scripts/build_app.sh
+      - name: Collect release notes from CHANGELOG.md
+        run: python3 scripts/release_notes.py "${GITHUB_REF_NAME}" > RELEASE_NOTES.md
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/Brightspace-Sync.dmg
-          generate_release_notes: true
+          body_path: RELEASE_NOTES.md

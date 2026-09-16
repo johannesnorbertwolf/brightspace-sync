@@ -6,7 +6,7 @@ import contextlib
 import io
 import threading
 
-from .. import auth
+from .. import auth, updates
 from ..api import BrightspaceClient
 from ..notify import Notifier
 from ..sync import run_sync
@@ -93,6 +93,17 @@ def start_courses(domain, cookies_path, *, on_done, on_error, post) -> None:
             post(on_done, courses)
         except Exception as exc:  # noqa: BLE001 - surface to the UI
             post(on_error, str(exc))
+
+    _start(work)
+
+
+def start_update_check(*, on_done, post) -> None:
+    def work() -> None:
+        try:
+            update = updates.check()
+        except Exception:  # noqa: BLE001 - never let a check break the app
+            update = None
+        post(on_done, update)
 
     _start(work)
 
