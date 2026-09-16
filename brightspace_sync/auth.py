@@ -33,6 +33,8 @@ from pathlib import Path
 
 import requests
 
+from . import browser
+
 LANDLORD = "https://landlord.brightspace.com/v1/tenants"
 INSTITUTION_SEARCH = "https://lms-disco.api.brightspace.com/institutions"
 AUTHORIZE = "https://auth.brightspace.com/oauth2/auth"
@@ -367,8 +369,6 @@ def _chrome_login(
     Captures the OAuth code from the ``brightspacepulse://auth`` redirect and
     the browser session cookies needed for browser-only course files.
     """
-    from . import browser
-
     verifier, challenge = _pkce_pair()
     state = secrets.token_urlsafe(16)
     url = _authorize_url(tenant_id, state, challenge)
@@ -445,7 +445,10 @@ def interactive_login(
     try:
         return _chrome_login(tenant_id, domain, cookies_path, log=log)
     except Exception as exc:  # noqa: BLE001 - optionally fall back
-        log(f"[auth] Chrome login did not complete: {exc}")
+        if browser.chrome_available():
+            log(f"[auth] Chrome login did not complete: {exc}")
+        else:
+            log("[auth] " + browser.NO_CHROME_NOTE)
         if not allow_fallback:
             raise
 

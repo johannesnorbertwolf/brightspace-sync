@@ -17,7 +17,10 @@ build here — no GitHub account needed:
 
 Open the disk image, drag **Brightspace Sync** into Applications, eject, and the
 first time you open it, right-click → Open. See [INSTALL.md](INSTALL.md) for the
-picture-by-picture guide. You need Google Chrome installed.
+picture-by-picture guide. Google Chrome is recommended but not required: it lets
+the app download a few files (such as a course reader) that Brightspace only
+serves to a signed-in browser. Without it everything else still works, but those
+files are saved as links instead.
 
 ## How authentication works
 
@@ -40,6 +43,11 @@ password for next time. Tokens are cached at:
 
 The captured cookies (needed for the course reader and other browser-only
 files) are saved to `~/.config/brightspace-sync/cookies.txt`.
+
+If Chrome (or a compatible Chromium browser such as Edge) is not installed,
+`login` falls back to your default browser and still captures the API token,
+just not the browser cookies. In that case everything syncs except reader-type
+files, which are saved as clickable links instead.
 
 Scheduled runs reuse the refresh token. If it ever expires you get a
 notification asking you to run `brightspace-sync login` again.
@@ -158,6 +166,11 @@ If the cookies are missing or expired, the tool still saves clickable
 shortcuts for those files and notes it in the log; once a real file downloads,
 its shortcut is removed. When the log says the reader needs cookies again,
 just run `brightspace-sync login` once more.
+
+If you don't have Chrome at all, the cookies can never be captured, so these
+files always stay as links. The app says so up front and offers to continue
+without Chrome. Install Chrome and sign in again if you later want the files
+downloaded for real.
 
 Advanced: if you prefer to supply cookies yourself, put either a Netscape
 `cookies.txt` export or a raw `name=value; name2=value2` cookie string at

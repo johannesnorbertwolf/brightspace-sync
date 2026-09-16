@@ -9,14 +9,17 @@ You don't need to know anything technical to use it.
 ## What you need
 
 - A Mac.
-- Google Chrome (free). If you don't have it, get it from
-  https://www.google.com/chrome/
+- Google Chrome (free) is recommended, from
+  https://www.google.com/chrome/ . It is not strictly required, but without it
+  a few special files (for example a course reader) can only be saved as links
+  rather than downloaded. The app explains this when you sign in.
 - Your RUG Brightspace login, and your phone if you use a two-step check.
 
-## Step 1 — Install Chrome
+## Step 1 — Install Chrome (recommended)
 
 If Chrome is already on your Mac, skip this. Otherwise open the link above and
-install it the normal way.
+install it the normal way. If you'd rather not, you can skip this step and the
+app will tell you what you miss.
 
 ## Step 2 — Install the app
 
@@ -39,7 +42,8 @@ The setup window opens by itself. Work down the list:
    pick another.
 2. **Brightspace account.** Click **Sign In**. A Chrome window opens; log in
    as usual, including any two-step check. The window closes on its own when
-   you're done.
+   you're done. If you don't have Chrome, a message explains what changes and
+   offers to continue using your normal browser instead.
 3. **Courses to sync.** Untick any course you don't want.
 4. **Notifications.** Leave "Show macOS notifications" on. If you'd like a
    message on your phone too, tick **iMessage** and enter your number or Apple
@@ -72,7 +76,10 @@ in the menu bar. That's the app.
   from the App Store.
 - **The menu bar says "Needs sign-in."** Click it, choose **Sign In Again**,
   and log in.
-- **It says Chrome is missing.** Install Chrome, then reopen the app.
+- **It says Chrome is not installed.** You can click **Continue Without
+  Chrome** and sign in with your normal browser. Everything syncs except
+  reader-type files, which are saved as links. To download those too, install
+  Chrome from https://www.google.com/chrome/ and sign in again.
 - **Nothing seems to happen.** Give the first download a few minutes, then
   click the menu bar icon to check the status.
 

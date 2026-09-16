@@ -25,6 +25,20 @@ CHROME_CANDIDATES = [
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
 ]
 
+# Shown to people who do not have Chrome installed. Deliberately free of
+# jargon: it says what still works, what does not, and why, using a concrete
+# example a student will recognise.
+NO_CHROME_NOTE = (
+    "A few pieces of Brightspace material can't be downloaded like ordinary "
+    "files. The reader for a course such as Statistics 1a is only put together "
+    "inside a web browser while you are signed in, and Brightspace only lets "
+    "Google Chrome share that with other apps.\n\n"
+    "Without Chrome, Brightspace Sync still downloads your announcements, "
+    "assignments, grades and ordinary course files. For the reader it saves a "
+    "clickable link instead, so you can still open it in your browser - it "
+    "just won't be copied onto your Mac."
+)
+
 
 class CDPError(RuntimeError):
     """Raised when Chrome cannot be launched or controlled."""
@@ -36,6 +50,11 @@ def find_chrome() -> str | None:
         if Path(candidate).exists():
             return candidate
     return shutil.which("google-chrome") or shutil.which("chromium")
+
+
+def chrome_available() -> bool:
+    """True when a Chromium-based browser we can drive is installed."""
+    return find_chrome() is not None
 
 
 def _free_profile_ok(profile_dir: Path) -> None:

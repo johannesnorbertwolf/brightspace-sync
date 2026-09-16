@@ -236,12 +236,18 @@ class AppController(NSObject):
     def signIn_(self, sender):
         if self.syncing:
             return
+        allow_fallback = False
+        if platform.find_chrome() is None:
+            if platform.confirm_login_without_chrome() != "continue":
+                return
+            allow_fallback = True
         self.syncing = True
         self.needs_login = False
         self._update_menu()
         workers.start_login(
             self.cfg.get("domain") or "brightspace.rug.nl",
             config_mod.resolve_cookies_file(self.cfg),
+            allow_fallback=allow_fallback,
             on_line=self._on_line,
             on_done=self._on_login_done,
             on_error=self._on_login_error,

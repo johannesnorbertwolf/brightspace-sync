@@ -56,14 +56,16 @@ def start_sync(cfg, *, interactive, on_line, on_done, on_error, post) -> None:
     _start(work)
 
 
-def start_login(domain, cookies_path, *, on_line, on_done, on_error, post) -> None:
+def start_login(
+    domain, cookies_path, *, allow_fallback=False, on_line, on_done, on_error, post
+) -> None:
     def work() -> None:
         try:
             token = auth.ensure_token(
                 domain,
                 force_login=True,
                 cookies_path=cookies_path,
-                allow_fallback=False,
+                allow_fallback=allow_fallback,
                 log=lambda line: post(on_line, line),
             )
             who = BrightspaceClient(

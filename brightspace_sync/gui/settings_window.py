@@ -436,12 +436,21 @@ class SettingsWindow(NSObject):
             self.path_field.setStringValue_(panel.URL().path())
 
     def signIn_(self, sender):
+        allow_fallback = False
+        if platform.find_chrome() is None:
+            choice = platform.confirm_login_without_chrome()
+            if choice != "continue":
+                return
+            allow_fallback = True
         self.busy = True
-        self.course_status = "Opening Chrome…"
+        self.course_status = (
+            "Opening your browser…" if allow_fallback else "Opening Chrome…"
+        )
         self._rebuild()
         workers.start_login(
             self.domain(),
             self.cookies_path(),
+            allow_fallback=allow_fallback,
             on_line=self._on_login_line,
             on_done=self._on_login_done,
             on_error=self._on_login_failed,

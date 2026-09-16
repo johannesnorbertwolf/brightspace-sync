@@ -24,6 +24,29 @@ def chrome_download_url() -> str:
     return "https://www.google.com/chrome/"
 
 
+def confirm_login_without_chrome() -> str:
+    """Warn that signing in without Chrome means some files are link-only.
+
+    Returns ``"continue"`` to sign in without Chrome, ``"get-chrome"`` after
+    opening the download page, or ``"cancel"`` to stop.
+    """
+    from AppKit import NSAlert
+
+    alert = NSAlert.alloc().init()
+    alert.setMessageText_("Google Chrome is not installed")
+    alert.setInformativeText_(browser.NO_CHROME_NOTE)
+    alert.addButtonWithTitle_("Continue Without Chrome")
+    alert.addButtonWithTitle_("Get Chrome")
+    alert.addButtonWithTitle_("Cancel")
+    response = alert.runModal()
+    if response == 1001:  # second button
+        open_url(chrome_download_url())
+        return "get-chrome"
+    if response == 1000:  # first button, the default
+        return "continue"
+    return "cancel"
+
+
 def open_url(url: str) -> None:
     subprocess.run(["open", url], check=False)
 

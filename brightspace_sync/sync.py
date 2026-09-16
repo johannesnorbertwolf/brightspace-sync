@@ -9,7 +9,7 @@ import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import auth, config as config_mod
+from . import auth, browser, config as config_mod
 from .api import BrightspaceClient, sanitize
 from .notify import Notifier
 from .state import State
@@ -173,7 +173,15 @@ def run_sync(
         log("First run: baseline recorded, notifications suppressed.")
 
     if result.cookie_warning and not dry_run:
-        if notify_throttled(
+        if not browser.chrome_available():
+            # Without Chrome a fresh login cannot capture cookies, so the
+            # "sign in again" notification would be misleading. The user was
+            # warned during setup; reader files simply stay as links.
+            log(
+                "Reader files are saved as links because Google Chrome is "
+                "not installed."
+            )
+        elif notify_throttled(
             state,
             "cookie_expired",
             notifier,
