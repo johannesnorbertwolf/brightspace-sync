@@ -188,7 +188,7 @@ class SettingsWindow(NSObject):
             "notify": 118,
             "schedule": 72,
         }
-        order = ["header", "storage", "account", "courses", "notify", "schedule"]
+        order = ["header", "account", "storage", "courses", "notify", "schedule"]
         doc_h = (
             MARGIN
             + sum(heights[key] for key in order)
@@ -203,6 +203,22 @@ class SettingsWindow(NSObject):
             height = heights[key]
             getattr(self, f"_build_{key}")(top)
             top += height + GAP
+
+        self._update_primary()
+
+    def _update_primary(self):
+        """Keep the bottom-right button in step with the sign-in state."""
+        if getattr(self, "primary", None) is None:
+            return
+        if self.busy:
+            title, enabled = "Signing in…", False
+        elif self.mode == "setup" and not self.signed_in:
+            title, enabled = "Sign In to Continue", True
+        else:
+            title = "Start Syncing" if self.mode == "setup" else "Save"
+            enabled = True
+        self.primary.setTitle_(title)
+        self.primary.setEnabled_(enabled)
 
     def _build_header(self, top):
         self.doc.addSubview_(
@@ -239,7 +255,7 @@ class SettingsWindow(NSObject):
         text = (
             f"Signed in as {self.account_name}."
             if self.signed_in
-            else "Not signed in yet."
+            else "Not signed in yet - sign in to continue."
         )
         color = NSColor.systemGreenColor() if self.signed_in else NSColor.secondaryLabelColor()
         self.signin_status = _label(
@@ -436,6 +452,11 @@ class SettingsWindow(NSObject):
             self.path_field.setStringValue_(panel.URL().path())
 
     def signIn_(self, sender):
+        self._start_sign_in()
+
+    def _start_sign_in(self):
+        if self.busy:
+            return
         allow_fallback = False
         if platform.find_chrome() is None:
             choice = platform.confirm_login_without_chrome()
@@ -509,10 +530,7 @@ class SettingsWindow(NSObject):
 
     def primaryAction_(self, sender):
         if self.mode == "setup" and not self.signed_in:
-            self._show_alert(
-                "Sign in first",
-                "Please sign in to Brightspace before starting the first sync.",
-            )
+            self._start_sign_in()
             return
         self._apply()
         if self.mode == "setup":
