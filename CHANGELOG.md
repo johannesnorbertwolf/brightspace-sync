@@ -5,6 +5,21 @@ publishes the matching section as the GitHub release notes, and the app shows
 those notes to users when it tells them an update is available. Write for
 students, not developers: say what changed and why it matters.
 
+## 0.1.3 - 2026-09-17
+
+**Handouts linked inside a page are now downloaded too.** Some course pages
+(for example "Lecture 3 Content and Materials") keep a handout or reading as a
+link inside the page itself rather than as an attached file. The app now
+follows those links and saves the file next to the page. Links written as full
+web addresses are recognised now as well, so they no longer come out as mere
+shortcuts. As before, if the browser cookies have expired these stay as
+clickable shortcuts until you sign in again.
+
+**Sessions that only had text now show up.** Some practicum sessions describe
+their material in the session description without attaching any file, so their
+folders used to come out empty. Each description is now saved as a readable
+Markdown note, so nothing is missed.
+
 ## 0.1.2 - 2026-09-16
 
 **The app now tells you when a new version is available.** When it starts,

@@ -15,6 +15,7 @@
   },
   "track": {
     "files": true,
+    "descriptions": true,
     "announcements": true,
     "assignments": true,
     "grades": true

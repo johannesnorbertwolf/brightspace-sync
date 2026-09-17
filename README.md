@@ -151,6 +151,7 @@ Config lives at `~/.config/brightspace-sync/config.json` (created on first
   },
   "track": {
     "files": true,
+    "descriptions": true,     // save each module's description as Markdown
     "announcements": true,
     "assignments": true,
     "grades": true
@@ -171,6 +172,13 @@ The cookies captured by `brightspace-sync login` cover this automatically, so
 normally there is nothing extra to do. The tool resolves each "course file"
 link to its real address and downloads it, keeping the module's folder layout.
 
+This covers links inside a downloaded page as well: if a page such as
+"Lecture 3 Content and Materials" embeds a handout or reading as a link, the
+tool follows it and saves the file next to the page. Links written as full web
+addresses are treated the same as site-relative ones. Incidental links in a
+page (stylesheets, fonts, external web resources) are ignored, so only real
+course files are fetched.
+
 If the cookies are missing or expired, the tool still saves clickable
 shortcuts for those files and notes it in the log; once a real file downloads,
 its shortcut is removed. When the log says the reader needs cookies again,
@@ -185,6 +193,17 @@ Advanced: if you prefer to supply cookies yourself, put either a Netscape
 `cookies.txt` export or a raw `name=value; name2=value2` cookie string at
 `~/.config/brightspace-sync/cookies.txt` (or point `cookies_file` elsewhere in
 the config).
+
+### Module descriptions as Markdown
+
+A lot of course material lives in a module's description rather than in
+attached files — learning outcomes, in-class activities, make-up assignments,
+and so on. When `track.descriptions` is on (the default), each module's
+description is converted to Markdown and saved inside that module's folder,
+named after the module (for example
+`Practicum 1A/Session RM1 .../Session RM1 ....md`). It is only rewritten when
+the text actually changes, so re-runs stay quiet. Set `track.descriptions` to
+`false` to turn it off.
 
 ### Notifications
 

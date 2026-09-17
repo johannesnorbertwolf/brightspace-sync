@@ -9,7 +9,7 @@ import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import auth, browser, config as config_mod
+from . import auth, browser, config as config_mod, htmlmd
 from .api import BrightspaceClient, sanitize
 from .notify import Notifier
 from .state import State
@@ -138,6 +138,10 @@ def run_sync(
                 log,
                 course_prefix=course_prefix,
             )
+        if track.get("descriptions", True):
+            _sync_module_notes(
+                client, course, out_root, state, result, counts, dry_run, log
+            )
 
         if track.get("announcements", True):
             _sync_announcements(client, course, state, result, dry_run)
@@ -208,6 +212,7 @@ def _sync_files(
     course_dir = out_root / sanitize(course["name"])
     previous = state.files(course["id"])
     enforced_prefix: str | None = None
+    warned = False
 
     for folder_parts, topic in client.walk_course(course["id"]):
         topic_id = topic["id"]
@@ -271,10 +276,42 @@ def _sync_files(
             "modified": outcome.get("modified"),
         }
 
+        # An HTML page can link to a handout or other file kept in Brightspace's
+        # browser-only area; follow those links so they land beside the page.
+        filename = outcome.get("filename") or ""
+        if outcome["status"] in ("get", "skip") and filename.lower().endswith(
+            (".html", ".htm")
+        ):
+            try:
+                html = (dest_dir / filename).read_text(
+                    encoding="utf-8", errors="replace"
+                )
+            except OSError:
+                html = ""
+            links = _extract_links(html)
+            if links:
+                warned = _process_links(
+                    client,
+                    course,
+                    links,
+                    dest_dir,
+                    Path(*folder_parts),
+                    previous,
+                    counts,
+                    result,
+                    dry_run,
+                    log,
+                    prefix=_enforced_prefix(links) or enforced_prefix,
+                    key_prefix="page",
+                    warned=warned,
+                    title=topic.get("title"),
+                    include_external=False,
+                )
+
     return enforced_prefix
 
 
-_LINK_RE = re.compile(r'href="([^"]+)"')
+_LINK_RE = re.compile(r'href=["\']([^"\']+)["\']')
 
 
 def _extract_links(html: str | None) -> list[str]:
@@ -288,7 +325,9 @@ def _extract_links(html: str | None) -> list[str]:
 
 
 def _classify_link(href: str) -> str:
-    if href.startswith("/content/enforced/"):
+    # Brightspace's browser-only file area, whether given as a path or a full
+    # URL (pages often link to it absolutely).
+    if "/content/enforced/" in href:
         return "file"
     if "/quickLink/" in href:
         query = urllib.parse.parse_qs(urllib.parse.urlparse(href).query)
@@ -318,8 +357,9 @@ def _quicklink_fileid(href: str) -> str | None:
 
 def _enforced_prefix(links: list[str]) -> str | None:
     for href in links:
-        if href.startswith("/content/enforced/"):
-            parts = href.split("/")
+        path = urllib.parse.urlparse(href).path if href.startswith("http") else href
+        if path.startswith("/content/enforced/"):
+            parts = path.split("/")
             if len(parts) >= 4:
                 return "/".join(parts[:4]) + "/"
     return None
@@ -333,6 +373,115 @@ def _write_shortcut(dest_dir: Path, name: str, url: str) -> None:
     content = f"[InternetShortcut]\nURL={url}\n"
     if not path.exists() or path.read_text(errors="replace") != content:
         path.write_text(content)
+
+
+def _process_links(
+    client: BrightspaceClient,
+    course: dict,
+    links: list[str],
+    dest_dir: Path,
+    rel_base: Path,
+    previous: dict,
+    counts: dict,
+    result: SyncResult,
+    dry_run: bool,
+    log,
+    *,
+    prefix: str | None = None,
+    key_prefix: str = "desc",
+    warned: bool = False,
+    title: str | None = None,
+    include_external: bool = True,
+) -> bool:
+    """Download Brightspace files linked from HTML; save shortcuts for the rest.
+
+    Used for both module descriptions and downloaded HTML pages, so a handout
+    linked from inside a page is fetched too.  ``rel_base`` is the folder
+    relative to the course, used for logging and the recorded path.  Returns
+    the updated ``warned`` flag so the "needs cookies" line is logged once.
+
+    ``include_external`` is off for downloaded pages, whose incidental links
+    (stylesheets, fonts, web resources) would otherwise litter the folder.
+    """
+    for href in links:
+        kind = _classify_link(href)
+        if kind in ("skip", "tool"):
+            continue
+
+        name = _link_name(href)
+
+        if kind == "external":
+            if not include_external:
+                continue
+            target = (
+                href if href.startswith("http") else f"https://{client.domain}{href}"
+            )
+            if not dry_run:
+                _write_shortcut(dest_dir, name, target)
+            continue
+
+        key = f"{key_prefix}:" + hashlib.sha1(href.encode()).hexdigest()
+        prev = previous.get(key)
+
+        if dry_run:
+            if prev is None:
+                counts["new"] += 1
+                result.events.append(Event("file-new", course["name"], name))
+            continue
+
+        download_url = href
+        if "quickLink" in href and prefix:
+            raw_id = _quicklink_fileid(href)
+            if raw_id:
+                name = sanitize(urllib.parse.unquote_plus(raw_id))
+                download_url = prefix + urllib.parse.quote(name)
+
+        outcome = client.download_browser_file(
+            download_url, dest_dir, filename_hint=name
+        )
+        if outcome["status"] == "nocookie":
+            if not warned:
+                log(
+                    "  ! Reader/course files need browser cookies "
+                    "(set cookies_file); saving links instead."
+                )
+                warned = True
+            result.cookie_warning = True
+            fallback = (
+                href if href.startswith("http") else f"https://{client.domain}{href}"
+            )
+            _write_shortcut(dest_dir, name, fallback)
+            continue
+        if outcome["status"] == "err":
+            counts["err"] += 1
+            log(f"  ! {name}: {outcome.get('detail', 'error')}")
+            continue
+
+        counts[outcome["status"]] = counts.get(outcome["status"], 0) + 1
+        if outcome["status"] in ("get", "skip"):
+            # The real file is present; drop any clickable fallback.
+            (dest_dir / f"{name}.url").unlink(missing_ok=True)
+        if outcome["status"] == "get":
+            rel = rel_base / outcome["filename"]
+            if prev is None:
+                counts["new"] += 1
+                result.events.append(
+                    Event("file-new", course["name"], outcome["filename"])
+                )
+                log(f"  + {rel}")
+            else:
+                counts["updated"] += 1
+                result.events.append(
+                    Event("file-updated", course["name"], outcome["filename"])
+                )
+                log(f"  ~ {rel} (updated)")
+            previous[key] = {
+                "title": title,
+                "path": str(rel),
+                "size": outcome.get("size"),
+                "modified": None,
+            }
+    return warned
 
 
 def _sync_descriptions(
@@ -361,82 +510,84 @@ def _sync_descriptions(
             continue
         dest_dir = course_dir.joinpath(*folder_parts)
         prefix = _enforced_prefix(links) or course_prefix
-        for href in links:
-            kind = _classify_link(href)
-            if kind in ("skip", "tool"):
-                continue
-            if kind == "external":
-                target = (
-                    href if href.startswith("http") else f"https://{client.domain}{href}"
-                )
-                if not dry_run:
-                    _write_shortcut(dest_dir, _link_name(href), target)
-                continue
+        warned = _process_links(
+            client,
+            course,
+            links,
+            dest_dir,
+            Path(*folder_parts),
+            previous,
+            counts,
+            result,
+            dry_run,
+            log,
+            prefix=prefix,
+            key_prefix="desc",
+            warned=warned,
+            title=module.get("title"),
+        )
 
-            key = "desc:" + hashlib.sha1(href.encode()).hexdigest()
-            prev = previous.get(key)
 
-            if dry_run:
-                if prev is None:
-                    counts["new"] += 1
-                    result.events.append(
-                        Event("file-new", course["name"], _link_name(href))
-                    )
-                continue
+def _sync_module_notes(
+    client: BrightspaceClient,
+    course: dict,
+    out_root: Path,
+    state: State,
+    result: SyncResult,
+    counts: dict,
+    dry_run: bool,
+    log,
+) -> None:
+    """Save each module's description as Markdown.
 
-            name = _link_name(href)
-            download_url = href
-            if "quickLink" in href and prefix:
-                raw_id = _quicklink_fileid(href)
-                if raw_id:
-                    name = sanitize(urllib.parse.unquote_plus(raw_id))
-                    download_url = prefix + urllib.parse.quote(name)
+    Much of a practicum session's material lives in the module description
+    (learning outcomes, activities, assignments) rather than in attached
+    files, so keep a readable copy alongside whatever files there are.
+    """
+    previous = state.files(course["id"])
+    course_dir = out_root / sanitize(course["name"])
 
-            outcome = client.download_browser_file(
-                download_url, dest_dir, filename_hint=name
+    for folder_parts, module in client.walk_course_modules(course["id"]):
+        html = (module.get("descriptionHtmlRichContent") or "").strip()
+        if not html:
+            continue
+        name = sanitize(module.get("title") or "Module")
+        rel = Path(*folder_parts) / f"{name}.md"
+        key = "note:" + module["id"]
+        digest = hashlib.sha1(html.encode()).hexdigest()
+        prev = previous.get(key)
+
+        if prev and prev.get("hash") == digest:
+            counts["skip"] += 1
+            continue
+
+        if dry_run:
+            counts["new"] += 1
+            result.events.append(Event("file-new", course["name"], f"{name}.md"))
+            continue
+
+        dest_dir = course_dir.joinpath(*folder_parts)
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        path = dest_dir / f"{name}.md"
+        path.write_text(htmlmd.to_markdown(html, base_url=f"https://{client.domain}"))
+
+        is_new = prev is None
+        counts["new" if is_new else "updated"] += 1
+        result.events.append(
+            Event(
+                "file-new" if is_new else "file-updated",
+                course["name"],
+                f"{name}.md",
             )
-            if outcome["status"] == "nocookie":
-                if not warned:
-                    log(
-                        "  ! Reader/course files need browser cookies "
-                        "(set cookies_file); saving links instead."
-                    )
-                    warned = True
-                result.cookie_warning = True
-                fallback = (
-                    href if href.startswith("http") else f"https://{client.domain}{href}"
-                )
-                _write_shortcut(dest_dir, name, fallback)
-                continue
-            if outcome["status"] == "err":
-                counts["err"] += 1
-                log(f"  ! {name}: {outcome.get('detail', 'error')}")
-                continue
-
-            counts[outcome["status"]] = counts.get(outcome["status"], 0) + 1
-            if outcome["status"] in ("get", "skip"):
-                # The real file is present; drop any clickable fallback.
-                (dest_dir / f"{name}.url").unlink(missing_ok=True)
-            if outcome["status"] == "get":
-                rel = Path(*folder_parts) / outcome["filename"]
-                if prev is None:
-                    counts["new"] += 1
-                    result.events.append(
-                        Event("file-new", course["name"], outcome["filename"])
-                    )
-                    log(f"  + {rel}")
-                else:
-                    counts["updated"] += 1
-                    result.events.append(
-                        Event("file-updated", course["name"], outcome["filename"])
-                    )
-                    log(f"  ~ {rel} (updated)")
-                previous[key] = {
-                    "title": module.get("title"),
-                    "path": str(rel),
-                    "size": outcome.get("size"),
-                    "modified": None,
-                }
+        )
+        log(f"  {'+' if is_new else '~'} {rel}")
+        previous[key] = {
+            "title": module.get("title"),
+            "path": str(rel),
+            "size": path.stat().st_size,
+            "modified": None,
+            "hash": digest,
+        }
 
 
 def _sync_announcements(client, course, state, result, dry_run) -> None:

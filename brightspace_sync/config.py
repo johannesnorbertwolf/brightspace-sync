@@ -54,6 +54,7 @@ DEFAULTS: dict = {
     },
     "track": {
         "files": True,
+        "descriptions": True,
         "announcements": True,
         "assignments": True,
         "grades": True,
