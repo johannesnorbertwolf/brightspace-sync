@@ -23,6 +23,8 @@ _EMPTY: dict = {
     "assignments": {},
     "grades": {},
     "notifications": {},
+    "pending_signin": {},
+    "reader_signin_needed": False,
 }
 
 
@@ -73,6 +75,10 @@ class State:
 
     def grades(self, course_id: str) -> dict:
         return self.data["grades"].setdefault(course_id, {})
+
+    def pending_signin(self, course_id: str) -> dict:
+        """Browser-only files seen before that still need a browser sign-in."""
+        return self.data["pending_signin"].setdefault(course_id, {})
 
     def summary(self) -> dict:
         return {

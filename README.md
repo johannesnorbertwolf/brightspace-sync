@@ -49,8 +49,9 @@ If Chrome (or a compatible Chromium browser such as Edge) is not installed,
 just not the browser cookies. In that case everything syncs except reader-type
 files, which are saved as clickable links instead.
 
-Scheduled runs reuse the refresh token. If it ever expires you get a
-notification asking you to run `brightspace-sync login` again.
+Scheduled runs reuse the refresh token. If it ever expires the app shows a
+`Needs sign-in` warning and notifies you at most once a day to run
+`brightspace-sync login` again.
 
 ## Install
 
@@ -181,8 +182,11 @@ course files are fetched.
 
 If the cookies are missing or expired, the tool still saves clickable
 shortcuts for those files and notes it in the log; once a real file downloads,
-its shortcut is removed. When the log says the reader needs cookies again,
-just run `brightspace-sync login` once more.
+its shortcut is removed. The app does not notify you about this repeatedly;
+instead it shows a `Reader files need a sign-in` warning in its menu, and only
+sends a notification when new reader files are actually waiting. Run
+`brightspace-sync login` once more (or use `Sign In Again` in the app) to
+restore the files.
 
 If you don't have Chrome at all, the cookies can never be captured, so these
 files always stay as links. The app says so up front and offers to continue
@@ -223,8 +227,11 @@ the text actually changes, so re-runs stay quiet. Set `track.descriptions` to
   app, so they arrive on all your Apple devices. The first send asks for
   permission to control Messages; click OK.
 
-Login-break alerts (expired API login, lapsed reader cookies, or a failed
-sync) are sent to every enabled channel, at most once every 12 hours each.
+New content, a failed sync (at most once every 12 hours) and a genuinely
+expired API login (at most once a day) are sent to every enabled channel.
+Lapsed reader cookies are not announced by notification: the menu bar app
+shows a `Reader files need a sign-in` warning, and only sends a notification
+when new reader files are actually waiting.
 
 `.env` is read from the project folder or `~/.config/brightspace-sync/`; see
 `.env.example`.

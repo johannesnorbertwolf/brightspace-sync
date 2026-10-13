@@ -15,59 +15,71 @@ ICNS = BUILD / "AppIcon.icns"
 
 SIZES = [16, 32, 64, 128, 256, 512, 1024]
 
-
-def _rounded(draw, box, radius, fill):
-    draw.rounded_rectangle(box, radius=radius, fill=fill)
+BG = (37, 99, 235, 255)       # blue rounded square
+SKIN = (247, 206, 170, 255)   # face
+SHADE = (232, 184, 146, 255)  # ears and neck
+HAIR = (58, 44, 42, 255)      # hair
+FEATURE = (58, 44, 42, 255)   # brows, eyes, nose, mouth
+SHIRT = (237, 242, 249, 255)  # shoulders
 
 
 def render(size: int) -> Image.Image:
+    """A flat, friendly portrait: the stylised face used across the app."""
     scale = 4
     s = size * scale
     image = Image.new("RGBA", (s, s), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
 
-    # Blue rounded square.
-    margin = int(s * 0.06)
-    _rounded(
-        draw,
-        (margin, margin, s - margin, s - margin),
-        int(s * 0.22),
-        (37, 99, 235, 255),
+    def u(v: float) -> float:
+        return v * s
+
+    def box(x0, y0, x1, y1):
+        return (u(x0), u(y0), u(x1), u(y1))
+
+    def line_width(v: float) -> int:
+        return max(1, int(u(v)))
+
+    # Rounded-square background.
+    margin = u(0.06)
+    draw.rounded_rectangle(
+        (margin, margin, s - margin, s - margin), radius=u(0.22), fill=BG
     )
 
-    # White download arrow.
-    cx = s / 2
-    top = s * 0.26
-    mid = s * 0.58
-    shaft_w = int(s * 0.075)
-    draw.rounded_rectangle(
-        (cx - shaft_w / 2, top, cx + shaft_w / 2, mid),
-        radius=shaft_w / 2,
-        fill=(255, 255, 255, 255),
-    )
-    head = [
-        (cx - s * 0.17, mid - s * 0.06),
-        (cx + s * 0.17, mid - s * 0.06),
-        (cx, mid + s * 0.14),
-    ]
-    draw.polygon(head, fill=(255, 255, 255, 255))
+    # Shoulders, neck, ears, head.
+    draw.ellipse(box(0.08, 0.72, 0.92, 1.30), fill=SHIRT)
+    draw.rectangle(box(0.42, 0.50, 0.58, 0.78), fill=SHADE)
+    draw.ellipse(box(0.255, 0.36, 0.335, 0.46), fill=SHADE)
+    draw.ellipse(box(0.665, 0.36, 0.745, 0.46), fill=SHADE)
+    draw.ellipse(box(0.28, 0.16, 0.72, 0.64), fill=SKIN)
 
-    # Tray.
-    tray_w = int(s * 0.09)
-    left = cx - s * 0.24
-    right = cx + s * 0.24
-    bottom = s * 0.78
-    draw.rounded_rectangle(
-        (left, bottom - tray_w, right, bottom), radius=tray_w / 2,
-        fill=(255, 255, 255, 255),
+    # Hair as a cap over the top of the head.
+    draw.pieslice(box(0.255, 0.08, 0.745, 0.46), 180, 360, fill=HAIR)
+
+    # Brows.
+    for cx in (0.41, 0.59):
+        draw.arc(
+            box(cx - 0.05, 0.335, cx + 0.05, 0.39),
+            180,
+            360,
+            fill=FEATURE,
+            width=line_width(0.011),
+        )
+    # Eyes.
+    for cx in (0.41, 0.59):
+        draw.ellipse(box(cx - 0.028, 0.40, cx + 0.028, 0.445), fill=FEATURE)
+    # Nose.
+    draw.line(
+        [(u(0.5), u(0.44)), (u(0.5), u(0.50))],
+        fill=FEATURE,
+        width=line_width(0.009),
     )
-    draw.rounded_rectangle(
-        (left, s * 0.62, left + tray_w, bottom), radius=tray_w / 2,
-        fill=(255, 255, 255, 255),
-    )
-    draw.rounded_rectangle(
-        (right - tray_w, s * 0.62, right, bottom), radius=tray_w / 2,
-        fill=(255, 255, 255, 255),
+    # Smile.
+    draw.arc(
+        box(0.42, 0.47, 0.58, 0.575),
+        0,
+        180,
+        fill=FEATURE,
+        width=line_width(0.013),
     )
 
     return image.resize((size, size), Image.LANCZOS)

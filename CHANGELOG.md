@@ -5,6 +5,19 @@ publishes the matching section as the GitHub release notes, and the app shows
 those notes to users when it tells them an update is available. Write for
 students, not developers: say what changed and why it matters.
 
+## 0.1.4 - 2026-10-13
+
+**A friendlier look.** The app and its menu-bar icon now show a simple
+smiling face instead of a download arrow, so it is easier to spot at a glance.
+
+**Calmer sign-in reminders.** Before, if a browser-only file such as the course
+reader could not be downloaded, the app could pop up a notification on every
+sync. Now it shows a single, quiet `Reader files need a sign-in` line in the
+menu, with a one-click way to sign in again, and it only sends a notification
+when genuinely new material is actually waiting. If your main Brightspace
+sign-in truly expires, the app tells you at most once a day instead of every
+hour.
+
 ## 0.1.3 - 2026-09-17
 
 **Handouts linked inside a page are now downloaded too.** Some course pages

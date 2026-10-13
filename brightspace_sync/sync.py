@@ -29,6 +29,7 @@ class SyncResult:
     courses: int = 0
     first_run: bool = False
     cookie_warning: bool = False
+    new_reader_blocked: int = 0
 
 
 def notify_throttled(
@@ -112,6 +113,9 @@ def run_sync(
     for stale in list(state.data["files"]):
         if stale not in seen_ids:
             del state.data["files"][stale]
+    for stale in list(state.data["pending_signin"]):
+        if stale not in seen_ids:
+            del state.data["pending_signin"][stale]
 
     for course in courses:
         course_id = course["id"]
@@ -155,7 +159,13 @@ def run_sync(
                 log(f"  ~ {name} (summary updated)")
 
     result.counts = counts
+    chrome_ok = browser.chrome_available()
     if not dry_run:
+        if chrome_ok:
+            # Browser-only files (the reader) need the user's browser session,
+            # not a full sign-in. Remember the state so the app can show a
+            # quiet warning instead of nagging with a notification.
+            state.data["reader_signin_needed"] = bool(result.cookie_warning)
         state.save()
 
     log(
@@ -176,25 +186,29 @@ def run_sync(
     elif result.first_run and result.events:
         log("First run: baseline recorded, notifications suppressed.")
 
-    if result.cookie_warning and not dry_run:
-        if not browser.chrome_available():
-            # Without Chrome a fresh login cannot capture cookies, so the
-            # "sign in again" notification would be misleading. The user was
-            # warned during setup; reader files simply stay as links.
-            log(
-                "Reader files are saved as links because Google Chrome is "
-                "not installed."
-            )
-        elif notify_throttled(
-            state,
-            "cookie_expired",
-            notifier,
-            "Brightspace: reader needs a fresh login",
-            "Run 'brightspace-sync login' to restore access to the reader "
-            "and other browser-only files.",
-        ):
-            log("Notified: reader files need a fresh login.")
-            state.save()
+    if result.cookie_warning and not dry_run and not chrome_ok:
+        # Without Chrome a fresh login cannot capture cookies, so asking the
+        # user to sign in would be misleading. The user was warned during
+        # setup; reader files simply stay as links.
+        log(
+            "Reader files are saved as links because Google Chrome is "
+            "not installed."
+        )
+
+    if (
+        result.new_reader_blocked
+        and not result.first_run
+        and not dry_run
+        and chrome_ok
+    ):
+        # A genuinely new file is waiting behind the browser sign-in, which is
+        # worth a single notification; otherwise the app only shows a warning.
+        notifier.send(
+            "Brightspace: new files need a sign-in",
+            f"{result.new_reader_blocked} new file(s) are waiting and need a "
+            "fresh sign-in to download. Use 'Sign In Again' in the app.",
+        )
+        log("Notified: new reader files need a fresh sign-in.")
 
     return result
 
@@ -306,6 +320,7 @@ def _sync_files(
                     warned=warned,
                     title=topic.get("title"),
                     include_external=False,
+                    pending=state.pending_signin(course["id"]),
                 )
 
     return enforced_prefix
@@ -392,6 +407,7 @@ def _process_links(
     warned: bool = False,
     title: str | None = None,
     include_external: bool = True,
+    pending: dict | None = None,
 ) -> bool:
     """Download Brightspace files linked from HTML; save shortcuts for the rest.
 
@@ -402,6 +418,9 @@ def _process_links(
 
     ``include_external`` is off for downloaded pages, whose incidental links
     (stylesheets, fonts, web resources) would otherwise litter the folder.
+
+    ``pending`` remembers browser-only files that are waiting for a browser
+    sign-in, so each newly blocked file can be counted just once.
     """
     for href in links:
         kind = _classify_link(href)
@@ -447,6 +466,9 @@ def _process_links(
                 )
                 warned = True
             result.cookie_warning = True
+            if pending is not None and key not in pending:
+                pending[key] = {"title": title, "name": name}
+                result.new_reader_blocked += 1
             fallback = (
                 href if href.startswith("http") else f"https://{client.domain}{href}"
             )
@@ -457,6 +479,8 @@ def _process_links(
             log(f"  ! {name}: {outcome.get('detail', 'error')}")
             continue
 
+        if pending is not None:
+            pending.pop(key, None)
         counts[outcome["status"]] = counts.get(outcome["status"], 0) + 1
         if outcome["status"] in ("get", "skip"):
             # The real file is present; drop any clickable fallback.
@@ -525,6 +549,7 @@ def _sync_descriptions(
             key_prefix="desc",
             warned=warned,
             title=module.get("title"),
+            pending=state.pending_signin(course["id"]),
         )
 
 

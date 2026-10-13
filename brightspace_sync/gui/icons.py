@@ -4,46 +4,74 @@ from __future__ import annotations
 
 from AppKit import NSBezierPath, NSColor, NSImage, NSMakeRect, NSMakeSize
 
+BASE = 18.0
 
-def _stroke(path, width: float = 1.6) -> None:
+
+def _stroke(path, width: float) -> None:
     path.setLineWidth_(width)
     path.setLineCapStyle_(1)
     path.setLineJoinStyle_(1)
     path.stroke()
 
 
-def status_image(attention: bool = False) -> NSImage:
-    """A small template image: a download arrow into a tray.
+def _dot(cx: float, cy: float, radius: float) -> None:
+    NSBezierPath.bezierPathWithOvalInRect_(
+        NSMakeRect(cx - radius, cy - radius, radius * 2, radius * 2)
+    ).fill()
+
+
+def _arc(start, end, control1, control2, width: float) -> None:
+    path = NSBezierPath.bezierPath()
+    path.moveToPoint_(start)
+    path.curveToPoint_controlPoint1_controlPoint2_(end, control1, control2)
+    _stroke(path, width)
+
+
+def status_image(attention: bool = False, size: float = BASE) -> NSImage:
+    """A small template image: a stylised face.
 
     Template images are recoloured by macOS to match the menu bar, so they
-    look native in both light and dark mode.
+    look native in both light and dark mode. ``size`` exists so previews can
+    render the same drawing large.
     """
-    image = NSImage.alloc().initWithSize_(NSMakeSize(18, 18))
+    f = size / BASE
+    image = NSImage.alloc().initWithSize_(NSMakeSize(size, size))
     image.lockFocus()
     NSColor.blackColor().set()
 
-    shaft = NSBezierPath.bezierPath()
-    shaft.moveToPoint_((9.0, 13.5))
-    shaft.lineToPoint_((9.0, 6.5))
-    _stroke(shaft)
+    def p(x: float, y: float) -> tuple[float, float]:
+        return (x * f, y * f)
 
-    head = NSBezierPath.bezierPath()
-    head.moveToPoint_((5.5, 10.0))
-    head.lineToPoint_((9.0, 6.5))
-    head.lineToPoint_((12.5, 10.0))
-    _stroke(head)
+    # Head outline.
+    head = NSBezierPath.bezierPathWithOvalInRect_(
+        NSMakeRect(4.0 * f, 3.0 * f, 10.0 * f, 12.0 * f)
+    )
+    _stroke(head, 1.5 * f)
 
-    tray = NSBezierPath.bezierPath()
-    tray.moveToPoint_((3.5, 8.5))
-    tray.lineToPoint_((3.5, 3.5))
-    tray.lineToPoint_((14.5, 3.5))
-    tray.lineToPoint_((14.5, 8.5))
-    _stroke(tray)
+    # Hair: an arc over the top of the head.
+    _arc(
+        p(4.4, 11.2),
+        p(13.6, 11.2),
+        p(6.5, 15.6),
+        p(11.5, 15.6),
+        1.5 * f,
+    )
+
+    # Eyes.
+    _dot(6.9 * f, 9.4 * f, 0.95 * f)
+    _dot(11.1 * f, 9.4 * f, 0.95 * f)
+
+    # Smile.
+    _arc(
+        p(6.8, 6.7),
+        p(11.2, 6.7),
+        p(7.7, 4.9),
+        p(10.3, 4.9),
+        1.5 * f,
+    )
 
     if attention:
-        NSBezierPath.bezierPathWithOvalInRect_(
-            NSMakeRect(12.0, 12.0, 6.0, 6.0)
-        ).fill()
+        _dot(15.3 * f, 15.3 * f, 2.2 * f)
 
     image.unlockFocus()
     image.setTemplate_(True)

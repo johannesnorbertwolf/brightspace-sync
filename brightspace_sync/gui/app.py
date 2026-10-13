@@ -24,6 +24,7 @@ from PyObjCTools import AppHelper
 from .. import __version__, auth, config as config_mod
 from ..notify import Notifier
 from ..state import State
+from ..sync import notify_throttled
 from . import icons, platform, workers
 from .settings_window import SettingsWindow
 
@@ -119,6 +120,10 @@ class AppController(NSObject):
 
         self.update_item = self._add_item("", b"update:", "")
         self.update_item.setHidden_(True)
+        self.warning_item = self._add_item(
+            "Reader files need a sign-in…", b"showReaderWarning:", ""
+        )
+        self.warning_item.setHidden_(True)
         self.sync_item = self._add_item("Sync Now", b"syncNow:", "s")
         self.folder_item = self._add_item(
             "Open Brightspace Folder", b"openFolder:", ""
@@ -138,11 +143,15 @@ class AppController(NSObject):
         return item
 
     def _update_menu(self):
-        summary = State().load().summary()
+        state = State().load()
+        summary = state.summary()
+        reader_warning = bool(state.data.get("reader_signin_needed"))
         if self.syncing:
             status = "Syncing…"
         elif self.needs_login:
             status = "Needs sign-in"
+        elif reader_warning:
+            status = "Reader needs sign-in"
         elif summary.get("last_run"):
             when = time.strftime("%H:%M", time.localtime(summary["last_run"]))
             status = f"Up to date - {when}"
@@ -150,8 +159,9 @@ class AppController(NSObject):
             status = "Not synced yet"
         self.status_line.setTitle_(status)
         self.sync_item.setEnabled_(not self.syncing)
+        self.warning_item.setHidden_(not reader_warning)
         self.status_bar_item.button().setImage_(
-            icons.status_image(self.needs_login)
+            icons.status_image(self.needs_login or reader_warning)
         )
 
     # -- lifecycle ---------------------------------------------------------
@@ -248,6 +258,20 @@ class AppController(NSObject):
         if alert.runModal() == 1000:
             platform.open_url(self.update.download_url or self.update.url)
 
+    def showReaderWarning_(self, sender):
+        alert = NSAlert.alloc().init()
+        alert.setMessageText_("Reader files need a sign-in")
+        alert.setInformativeText_(
+            "Some course material, such as the reader, is only available "
+            "while your Brightspace browser session is signed in. Until you "
+            "sign in again, new copies are saved as clickable links instead "
+            "of files.\n\nSigning in here does not change your other files."
+        )
+        alert.addButtonWithTitle_("Sign In Again")
+        alert.addButtonWithTitle_("Later")
+        if alert.runModal() == 1000:
+            self.signIn_(sender)
+
     def _open_settings(self, mode):
         self.settings = SettingsWindow.alloc().initWithController_mode_(self, mode)
         self.settings.show()
@@ -290,10 +314,19 @@ class AppController(NSObject):
         self.needs_login = bool(reauth)
         self._update_menu()
         if reauth:
-            self._send_notification(
+            # A genuine sign-in is needed; tell the user at most once a day so
+            # a broken session cannot nag on every hourly sync. The menu keeps
+            # showing "Needs sign-in" until it is fixed.
+            state = State().load()
+            if notify_throttled(
+                state,
+                "reauth",
+                Notifier(self.cfg.get("notify")),
                 "Brightspace sign-in needed",
                 "Choose 'Sign In Again' from the menu to reconnect.",
-            )
+                hours=24,
+            ):
+                state.save(touch_last_run=False)
         else:
             self._send_notification("Brightspace sync failed", message[:150])
 

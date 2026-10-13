@@ -75,6 +75,7 @@ def cmd_sync(args) -> int:
                 Notifier(cfg.get("notify")),
                 "Brightspace login expired",
                 "Run 'brightspace-sync login' to sign in again.",
+                hours=24,
             ):
                 state.save()
         return 2
